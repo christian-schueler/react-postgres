@@ -23,12 +23,26 @@ COMMENT ON TABLE "public"."location" IS 'structural location table';
 -- structural specialobject table
 DROP TABLE IF EXISTS "public"."specialobject";
 CREATE TABLE "public"."specialobject" (
-  "parent" UUID NULL CONSTRAINT "check_link" CHECK ("linked_to" IS NULL),
-  "linked_to" UUID NULL CONSTRAINT "check_parent" CHECK ("parent" IS NULL)
+  "linked_to" UUID NULL CONSTRAINT "check_parent" CHECK ("parent" IS NULL) REFERENCES "public"."location" ("id"),
+  "parent" UUID NULL CONSTRAINT "check_link" CHECK ("linked_to" IS NULL) REFERENCES "public"."specialobject" ("id")
 ) INHERITS("public"."base_object");
-CREATE INDEX ON "public"."specialobject" ("parent");
 CREATE INDEX ON "public"."specialobject" ("linked_to");
+CREATE INDEX ON "public"."specialobject" ("parent");
 COMMENT ON TABLE "public"."specialobject" IS 'structural specialobject table';
+COMMENT ON COLUMN "public"."specialobject"."linked_to" IS 'reference to a location object';
+COMMENT ON COLUMN "public"."specialobject"."parent" IS 'reference to another specialobject';
+
+-- event type table
+DROP TABLE IF EXISTS "public"."event_type";
+CREATE TABLE "public"."event_type" (
+  "id" UUID PRIMARY KEY,
+  "name" VARCHAR(255) NOT NULL,
+  "metadata" JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE INDEX ON "public"."event_type" ("name");
+COMMENT ON TABLE "public"."event_type" IS 'types of events';
+COMMENT ON COLUMN "public"."event_type"."name" IS 'name of the event type';
+COMMENT ON COLUMN "public"."event_type"."metadata" IS 'event behaviour metadata (e.g. if the event is an event, increasing or decreasing an amount)';
 
 -- global eventsourcing table
 DROP TABLE IF EXISTS "public"."events";
@@ -36,7 +50,7 @@ CREATE TABLE "public"."events" (
   "global_position" BIGSERIAL PRIMARY KEY,
   "object_id" UUID NOT NULL,
   "object_type" VARCHAR(255) NOT NULL,
-  "event_type" VARCHAR(255) NOT NULL,
+  "event_type" UUID NOT NULL REFERENCES "public"."event_type" ("id"),
   "event_version" INTEGER NOT NULL,
   "payload" JSONB NOT NULL,
   "metadata" JSONB NOT NULL DEFAULT '{}'::jsonb,
